@@ -569,10 +569,10 @@ def understand_intent(state: AgentState) -> AgentState:
             "error": str(e)
         }
     
-    return {
+    return cast(AgentState, {
         **state,
         "intent_data": intent_data
-    }
+    })
 
 def decide_tool_calls(state: AgentState) -> AgentState:
     """ツール呼び出しを決定するノード"""
@@ -609,10 +609,10 @@ def decide_tool_calls(state: AgentState) -> AgentState:
             "reason": f"ツール決定中にエラーが発生しました: {str(e)}"
         }
     
-    return {
+    return cast(AgentState, {
         **state,
         "tool_calls": [tool_decision] if tool_decision.get("tool_name") else []
-    }
+    })
 
 def execute_tools(state: AgentState) -> AgentState:
     """ツールを実行するノード"""
@@ -719,10 +719,10 @@ def execute_tools(state: AgentState) -> AgentState:
                 "error": str(e)
             })
     
-    return {
+    return cast(AgentState, {
         **state,
         "tool_results": tool_results
-    }
+    })
 
 def generate_response(state: AgentState) -> AgentState:
     """応答を生成するノード"""
@@ -746,10 +746,10 @@ def generate_response(state: AgentState) -> AgentState:
         "intent_json": json.dumps(intent_data, ensure_ascii=False)
     })
     
-    return {
+    return cast(AgentState, {
         **state,
         "current_output": result
-    }
+    })
 
 def build_agent_graph() -> GraphRunner:
     """エージェントグラフを構築する"""
