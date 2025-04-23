@@ -530,7 +530,18 @@ RESPONSE_GENERATION_PROMPT = """
 """
 
 def understand_intent(state: AgentState) -> AgentState:
-    """ユーザーの意図を理解するノード"""
+    """
+    ユーザーの意図を理解するノード
+    
+    ユーザーの入力から予定に関する意図（作成、確認、変更、削除）を抽出し、
+    構造化されたデータとして返す。会話の文脈も考慮して意図を理解する。
+    
+    Args:
+        state: 現在のエージェント状態（ユーザーID、入力メッセージ、会話履歴など）
+    
+    Returns:
+        更新されたエージェント状態（intent_dataフィールドが追加される）
+    """
     user_id = state["user_id"]
     current_input = state["current_input"]
     messages = state["messages"]
@@ -575,7 +586,18 @@ def understand_intent(state: AgentState) -> AgentState:
     })
 
 def decide_tool_calls(state: AgentState) -> AgentState:
-    """ツール呼び出しを決定するノード"""
+    """
+    ツール呼び出しを決定するノード
+    
+    ユーザーの意図に基づいて、呼び出すべきツール（カレンダー操作関数）を決定する。
+    日時情報がある場合は、まずparse_datetimeツールを使用して日時をISO形式に変換する。
+    
+    Args:
+        state: 現在のエージェント状態（意図データを含む）
+    
+    Returns:
+        更新されたエージェント状態（tool_callsフィールドが追加される）
+    """
     intent_data = state.get("intent_data", {})
     user_id = state["user_id"]
     messages = state["messages"]
@@ -615,7 +637,20 @@ def decide_tool_calls(state: AgentState) -> AgentState:
     })
 
 def execute_tools(state: AgentState) -> AgentState:
-    """ツールを実行するノード"""
+    """
+    ツールを実行するノード
+    
+    decide_tool_callsノードで決定されたツール呼び出しを実際に実行する。
+    各ツール（parse_datetime, create_calendar_event, read_calendar_events, 
+    update_calendar_event_tool, delete_calendar_event_tool）に対して、
+    適切なパラメータを渡して実行し、結果を収集する。
+    
+    Args:
+        state: 現在のエージェント状態（tool_callsフィールドを含む）
+    
+    Returns:
+        更新されたエージェント状態（tool_resultsフィールドが追加される）
+    """
     tool_calls = state.get("tool_calls", [])
     user_id = state["user_id"]
     intent_data = state.get("intent_data", {})
@@ -725,7 +760,18 @@ def execute_tools(state: AgentState) -> AgentState:
     })
 
 def generate_response(state: AgentState) -> AgentState:
-    """応答を生成するノード"""
+    """
+    応答を生成するノード
+    
+    ツール実行結果と意図データに基づいて、ユーザーへの最終的な応答を生成する。
+    会話の文脈を考慮して、自然で一貫性のある応答を作成する。
+    
+    Args:
+        state: 現在のエージェント状態（tool_resultsとintent_dataフィールドを含む）
+    
+    Returns:
+        更新されたエージェント状態（current_outputフィールドが追加される）
+    """
     tool_results = state.get("tool_results", [])
     intent_data = state.get("intent_data", {})
     messages = state["messages"]
@@ -752,7 +798,16 @@ def generate_response(state: AgentState) -> AgentState:
     })
 
 def build_agent_graph() -> GraphRunner:
-    """エージェントグラフを構築する"""
+    """
+    エージェントグラフを構築する
+    
+    LangGraphのStateGraphを使用して、エージェントのワークフローを定義する。
+    ノード（understand_intent, decide_tool_calls, execute_tools, generate_response）と
+    それらを接続するエッジを設定し、実行可能なグラフを構築する。
+    
+    Returns:
+        構築されたGraphRunnerオブジェクト
+    """
     workflow = StateGraph(AgentState)
     
     workflow.add_node("understand_intent", understand_intent)
@@ -774,6 +829,10 @@ graph_runner = build_agent_graph()
 def process_user_message(user_id: str, user_message: str) -> str:
     """
     ユーザーのメッセージを処理し、適切な応答を返す
+    
+    ユーザーからのメッセージを受け取り、LangGraphエージェントを使用して処理する。
+    会話の文脈を保持し、適切なカレンダー操作を実行して結果を返す。
+    エラーが発生した場合は適切なエラーメッセージを返す。
     
     Args:
         user_id: ユーザーID
