@@ -6,7 +6,7 @@ from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, ReplyMe
 from linebot.v3.webhooks import MessageEvent, TextMessageContent, PostbackEvent
 from linebot.v3.exceptions import InvalidSignatureError
 
-from app.services.ai_processor import process_user_message
+from app.services.ai_processor_langgraph import process_user_message
 from app.services.google_calendar import check_user_auth_status
 from app.services.group_scheduler import (
     find_available_times, 
