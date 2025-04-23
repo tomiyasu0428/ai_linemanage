@@ -18,11 +18,18 @@ from app.services.google_calendar import (
     delete_calendar_event,
     update_calendar_event
 )
+from app.services.database import (
+    save_conversation_memory,
+    get_conversation_memory,
+    clear_expired_memories
+)
 
 gemini_api_key = os.getenv("GEMINI_API_KEY")
 llm = ChatGoogleGenerativeAI(model="gemini-pro", google_api_key=gemini_api_key)
 
 user_memories = {}
+
+clear_expired_memories()
 
 def create_calendar_event(
     user_id: str,
@@ -267,12 +274,22 @@ prompt = ChatPromptTemplate.from_messages([
 
 def get_user_memory(user_id: str) -> ConversationBufferMemory:
     """ユーザーごとの会話メモリを取得する（存在しない場合は新規作成）"""
-    if user_id not in user_memories:
-        user_memories[user_id] = ConversationBufferMemory(
-            memory_key="chat_history",
-            return_messages=True
-        )
-    return user_memories[user_id]
+    if user_id in user_memories:
+        return user_memories[user_id]
+    
+    db_messages = get_conversation_memory(user_id)
+    
+    memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        return_messages=True
+    )
+    
+    if db_messages:
+        for message in db_messages:
+            memory.chat_memory.add_message(message)
+    
+    user_memories[user_id] = memory
+    return memory
 
 def create_agent_executor(memory: ConversationBufferMemory) -> AgentExecutor:
     """エージェント実行環境を作成する"""
@@ -297,6 +314,9 @@ def process_user_message(user_id: str, user_message: str) -> str:
             "input": user_message,
             **context
         })
+        
+        messages = memory.chat_memory.messages
+        save_conversation_memory(user_id, messages)
         
         return response["output"]
             
