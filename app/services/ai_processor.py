@@ -22,6 +22,8 @@ from app.services.google_calendar import (
 gemini_api_key = os.getenv("GEMINI_API_KEY")
 llm = ChatGoogleGenerativeAI(model="gemini-pro", google_api_key=gemini_api_key)
 
+user_memories = {}
+
 def create_calendar_event(
     user_id: str,
     start_time: str,
@@ -253,6 +255,9 @@ prompt = ChatPromptTemplate.from_messages([
     ユーザーの入力から、予定の作成/確認/更新/削除のどの操作が必要かを判断し、
     適切なツールを使用してください。日時情報は必ずparse_datetimeツールで解析してください。
     
+    前回の会話内容を覚えておき、文脈を理解して応答してください。例えば、ユーザーが「それを30分遅らせて」と言った場合、
+    前回の会話で話題になった予定を30分遅らせるという意味だと理解してください。
+    
     応答は常に日本語で、丁寧かつ簡潔に行ってください。
     """),
     MessagesPlaceholder(variable_name="chat_history"),
@@ -260,22 +265,32 @@ prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="agent_scratchpad"),
 ])
 
-memory = ConversationBufferMemory(
-    memory_key="chat_history",
-    return_messages=True
-)
+def get_user_memory(user_id: str) -> ConversationBufferMemory:
+    """ユーザーごとの会話メモリを取得する（存在しない場合は新規作成）"""
+    if user_id not in user_memories:
+        user_memories[user_id] = ConversationBufferMemory(
+            memory_key="chat_history",
+            return_messages=True
+        )
+    return user_memories[user_id]
 
-agent = create_openai_tools_agent(llm, tools, prompt)
-agent_executor = AgentExecutor(
-    agent=agent,
-    tools=tools,
-    memory=memory,
-    verbose=True
-)
+def create_agent_executor(memory: ConversationBufferMemory) -> AgentExecutor:
+    """エージェント実行環境を作成する"""
+    agent = create_openai_tools_agent(llm, tools, prompt)
+    return AgentExecutor(
+        agent=agent,
+        tools=tools,
+        memory=memory,
+        verbose=True
+    )
 
 def process_user_message(user_id: str, user_message: str) -> str:
     """ユーザーのメッセージを処理し、適切な応答を返す"""
     try:
+        memory = get_user_memory(user_id)
+        
+        agent_executor = create_agent_executor(memory)
+        
         context = {"user_id": user_id}
         
         response = agent_executor.invoke({
