@@ -1,6 +1,7 @@
 import os
 import re
-from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, Depends
+import datetime
+from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 from linebot.v3 import WebhookHandler
 from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, ReplyMessageRequest, TextMessage
 from linebot.v3.webhooks import MessageEvent, TextMessageContent, PostbackEvent
@@ -65,7 +66,6 @@ def handle_message(event):
                 
                 participant_ids = []
                 
-                import datetime
                 start_date = datetime.datetime.now().isoformat()
                 end_date = (datetime.datetime.now() + datetime.timedelta(days=7)).isoformat()
                 
