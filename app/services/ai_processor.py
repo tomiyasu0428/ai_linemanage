@@ -97,6 +97,45 @@ def read_calendar_events(
         events_text += f"{i}. {event['summary']} ({event['start']['dateTime']}〜{event['end']['dateTime']})\n"
     return events_text
 
+def handle_ambiguous_events(
+    events: List[Dict[str, Any]]
+) -> str:
+    """
+    複数の候補がある場合に、ユーザーに選択肢を提示する
+    
+    Args:
+        events: 候補となる予定のリスト
+    
+    Returns:
+        選択肢を含むメッセージ
+    """
+    if not events:
+        return "該当する予定が見つかりませんでした。"
+    
+    message = "複数の予定が見つかりました。どの予定について操作しますか？\n"
+    for i, event in enumerate(events, 1):
+        start_time = event.get('start', {}).get('dateTime', '不明')
+        end_time = event.get('end', {}).get('dateTime', '不明')
+        
+        try:
+            start_dt = datetime.datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+            end_dt = datetime.datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+            
+            jst = datetime.timezone(datetime.timedelta(hours=9))
+            start_dt = start_dt.astimezone(jst)
+            end_dt = end_dt.astimezone(jst)
+            
+            formatted_start = start_dt.strftime("%Y年%m月%d日 %H:%M")
+            formatted_end = end_dt.strftime("%H:%M")
+            time_str = f"{formatted_start}〜{formatted_end}"
+        except:
+            time_str = f"{start_time}〜{end_time}"
+        
+        message += f"{i}. {event.get('summary', '無題')} ({time_str})\n"
+    
+    message += "\n番号で選択するか、より詳細な情報（タイトルと日時）を教えてください。"
+    return message
+
 def update_calendar_event_tool(
     user_id: str,
     title: str,
@@ -119,7 +158,7 @@ def update_calendar_event_tool(
     Returns:
         更新結果のメッセージ
     """
-    success = update_calendar_event(
+    result = update_calendar_event(
         user_id=user_id,
         event_query={
             "title": title,
@@ -134,10 +173,12 @@ def update_calendar_event_tool(
         }
     )
     
-    if success:
+    if result is True:
         return f"予定「{title}」を更新しました。"
+    elif isinstance(result, list):
+        return handle_ambiguous_events(result)
     else:
-        return "予定の更新に失敗しました。該当する予定が見つからないか、複数の候補があります。"
+        return "予定の更新に失敗しました。該当する予定が見つかりません。"
 
 def delete_calendar_event_tool(
     user_id: str,
@@ -155,7 +196,7 @@ def delete_calendar_event_tool(
     Returns:
         削除結果のメッセージ
     """
-    success = delete_calendar_event(
+    result = delete_calendar_event(
         user_id=user_id,
         event_query={
             "title": title,
@@ -163,10 +204,12 @@ def delete_calendar_event_tool(
         }
     )
     
-    if success:
+    if result is True:
         return f"予定「{title}」を削除しました。"
+    elif isinstance(result, list):
+        return handle_ambiguous_events(result)
     else:
-        return "予定の削除に失敗しました。該当する予定が見つからないか、複数の候補があります。"
+        return "予定の削除に失敗しました。該当する予定が見つかりません。"
 
 def parse_datetime(
     date_text: str

@@ -111,8 +111,15 @@ def get_calendar_events(
 def find_event_by_query(
     service, 
     event_query: Dict[str, Any]
-) -> Optional[str]:
-    """クエリ条件に一致する予定を検索する"""
+) -> Union[str, List[Dict[str, Any]], None]:
+    """
+    クエリ条件に一致する予定を検索する
+    
+    Returns:
+        - 一致する予定が1つの場合: イベントID (str)
+        - 複数の予定が一致する場合: 一致する予定のリスト (List[Dict])
+        - 一致する予定がない場合: None
+    """
     try:
         title = event_query.get('title', '')
         start_time = event_query.get('start_time')
@@ -143,6 +150,8 @@ def find_event_by_query(
         
         if len(matching_events) == 1:
             return matching_events[0].get('id')
+        elif len(matching_events) > 1:
+            return matching_events
         
         return None
     
@@ -154,14 +163,26 @@ def update_calendar_event(
     user_id: str,
     event_query: Dict[str, Any],
     updated_data: Dict[str, Any]
-) -> bool:
-    """カレンダー予定を更新する"""
+) -> Union[bool, List[Dict[str, Any]]]:
+    """
+    カレンダー予定を更新する
+    
+    Returns:
+        - 更新成功: True
+        - 複数の候補がある場合: 候補となる予定のリスト
+        - 更新失敗: False
+    """
     try:
         service = get_google_calendar_service(user_id)
         if not service:
             return False
         
-        event_id = find_event_by_query(service, event_query)
+        result = find_event_by_query(service, event_query)
+        
+        if isinstance(result, list):
+            return result
+        
+        event_id = result
         if not event_id:
             return False
         
@@ -194,14 +215,26 @@ def update_calendar_event(
 def delete_calendar_event(
     user_id: str,
     event_query: Dict[str, Any]
-) -> bool:
-    """カレンダー予定を削除する"""
+) -> Union[bool, List[Dict[str, Any]]]:
+    """
+    カレンダー予定を削除する
+    
+    Returns:
+        - 削除成功: True
+        - 複数の候補がある場合: 候補となる予定のリスト
+        - 削除失敗: False
+    """
     try:
         service = get_google_calendar_service(user_id)
         if not service:
             return False
         
-        event_id = find_event_by_query(service, event_query)
+        result = find_event_by_query(service, event_query)
+        
+        if isinstance(result, list):
+            return result
+        
+        event_id = result
         if not event_id:
             return False
         
